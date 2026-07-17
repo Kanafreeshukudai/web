@@ -90,6 +90,18 @@ section.view{display:none; animation:fadein .35s ease;}
 section.view.active{display:block;}
 @keyframes fadein{from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:translateY(0);}}
 
+/* ---------- SUBNAV (Hammasi / Kunlik vazifa) ---------- */
+.subnav{
+  display:flex; justify-content:center; gap:10px; margin-top:22px; flex-wrap:wrap;
+}
+.sub-btn{
+  border:1px solid var(--border); background:var(--panel); color:var(--muted);
+  padding:8px 18px; border-radius:999px; font-family:var(--font-body); font-weight:700;
+  font-size:13px; cursor:pointer; transition:all .2s;
+}
+.sub-btn.active{background:var(--gold-soft); color:var(--gold); border-color:var(--gold);}
+.sub-btn .dot{display:inline-block; width:6px; height:6px; border-radius:50%; background:var(--gold); margin-left:6px; vertical-align:middle;}
+
 /* ---------- FLASHCARDS ---------- */
 .grid{
   margin-top:28px;
@@ -251,7 +263,7 @@ footer.note{text-align:center; color:var(--muted); font-size:12px; margin-top:36
   <header>
     <div class="eyebrow">和室 &middot; JAPANESE HOME VOCAB</div>
     <h1>Uy <span>so'zlari</span></h1>
-    <p class="subtitle">15 ta yapon uy-ro'zg'or so'zi &mdash; kartochka bilan yodlang, viktorina bilan tekshiring</p>
+    <p class="subtitle">Yapon uy-ro'zg'or so'zlari &mdash; kartochka bilan yodlang, viktorina bilan tekshiring</p>
 
     <div class="tabs" id="tabs">
       <div class="indicator"></div>
@@ -261,10 +273,18 @@ footer.note{text-align:center; color:var(--muted); font-size:12px; margin-top:36
   </header>
 
   <section class="view active" id="viewFlash">
+    <div class="subnav" id="flashSubnav">
+      <button class="sub-btn active" data-set="all" id="flashSubAll">Hammasi</button>
+      <button class="sub-btn" data-set="daily" id="flashSubDaily">Kunlik vazifa</button>
+    </div>
     <div class="grid" id="flashGrid"></div>
   </section>
 
   <section class="view" id="viewQuiz">
+    <div class="subnav" id="quizSubnav">
+      <button class="sub-btn active" data-set="all" id="quizSubAll">Hammasi</button>
+      <button class="sub-btn" data-set="daily" id="quizSubDaily">Kunlik vazifa</button>
+    </div>
     <div class="progress-row" id="progressRow"></div>
     <div class="score-line" id="scoreLine"></div>
 
@@ -287,7 +307,8 @@ footer.note{text-align:center; color:var(--muted); font-size:12px; margin-top:36
    - group: kartochkada chiqadigan kichik yorliq (masalan "Oshxona", "Kiyim" va h.k.) — istagan nom bo'lishi mumkin
    Klaviatura tugmalari pastda AVTOMATIK hisoblanadi, qo'lda sozlash shart emas.
    ============================================================ */
-const WORDS = [
+/* "Hammasi" bo'limi — asosiy so'zlar to'plami */
+const ALL_WORDS = [
   {uz:"Uy", kana:"うち / いえ", accepted:["うち","いえ"], romaji:"uchi / ie", group:"Bino", kb:"hira"},
   {uz:"Xona", kana:"へや", accepted:["へや"], romaji:"heya", group:"Bino", kb:"hira"},
   {uz:"Eshik", kana:"ドア", accepted:["ドア"], romaji:"doa", group:"Bino", kb:"kata"},
@@ -301,23 +322,41 @@ const WORDS = [
   {uz:"Televizor", kana:"テレビ", accepted:["テレビ"], romaji:"terebi", group:"Texnika", kb:"kata"},
   {uz:"Parda", kana:"カーテン", accepted:["カーテン"], romaji:"kāten", group:"Boshqa", kb:"kata"},
   {uz:"Axlat qutisi", kana:"ごみばこ", accepted:["ごみばこ"], romaji:"gomibako", group:"Boshqa", kb:"hira"},
-  {uz:"Hojatxona", kana:"トイレ", accepted:["トイレ"], romaji:"toire", group:"Boshqa", kb:"kata"},
-  {uz:"Dush", kana:"シャワー", accepted:["シャワー"], romaji:"shawā", group:"Boshqa", kb:"kata"}
+  {uz:"Hojatxona", kana:"トイレ", accepted:["トイレ"], romaji:"toire", group:"Boshqa", kb:"kata"}
+];
 
-  /* --- MISOL: shu formatda pastiga yangi qator qo'shsangiz bo'ldi ---
+/* "Kunlik vazifa" bo'limi — har kuni shu yerga yangi so'z qo'shing.
+   Format ALL_WORDS bilan bir xil: {uz, kana, accepted:[...], romaji, group, kb:"hira"/"kata"}
+   Eslatma: agar so'z kanji bilan yozilsa (masalan 電子レンジ), "kana" maydonida
+   asl (kanji bilan) shaklini ko'rsating, "accepted" maydonida esa faqat
+   hiragana/katakana bilan terish mumkin bo'lgan o'qilishini yozing. */
+const DAILY_WORDS = [
+  {uz:"Dush", kana:"シャワー", accepted:["シャワー"], romaji:"shawā", group:"Boshqa", kb:"kata"},
+  {uz:"Stakan", kana:"コップ", accepted:["コップ"], romaji:"koppu", group:"Oshxona", kb:"kata"},
+  {uz:"Likopcha", kana:"おさら", accepted:["おさら"], romaji:"osara", group:"Oshxona", kb:"hira"},
+  {uz:"Ovqat yeyish cho'plari", kana:"はし", accepted:["はし"], romaji:"hashi", group:"Oshxona", kb:"hira"},
+  {uz:"Qoshiq", kana:"スプーン", accepted:["スプーン"], romaji:"supūn", group:"Oshxona", kb:"kata"},
+  {uz:"Vilka", kana:"フォーク", accepted:["フォーク"], romaji:"fōku", group:"Oshxona", kb:"kata"},
+  {uz:"Muzlatgich", kana:"れいぞうこ", accepted:["れいぞうこ"], romaji:"reizōko", group:"Oshxona", kb:"hira"},
+  {uz:"Mikroto'lqinli pech", kana:"電子レンジ", accepted:["でんしレンジ"], romaji:"denshi renji", group:"Oshxona", kb:"hira"},
+  {uz:"Qozon", kana:"なべ", accepted:["なべ"], romaji:"nabe", group:"Oshxona", kb:"hira"},
+  {uz:"Tovada", kana:"フライパン", accepted:["フライパン"], romaji:"furaipan", group:"Oshxona", kb:"kata"},
+  {uz:"Oshxona pichog'i", kana:"ほうちょう", accepted:["ほうちょう"], romaji:"hōchō", group:"Oshxona", kb:"hira"}
+
+  /* --- MISOL: ertaga qo'shadigan yangi so'zingizni shu formatda pastiga yozing ---
   ,{uz:"Choynak", kana:"やかん", accepted:["やかん"], romaji:"yakan", group:"Oshxona", kb:"hira"}
   */
 ];
 
-/* Klaviatura tugmalari WORDS ichidagi accepted javoblardan avtomatik yig'iladi,
-   gojuon (an'anaviy yapon) tartibida ko'rsatiladi. Yangi so'z qo'shsangiz,
-   agar yangi kana harf ishlatilsa, u tugmalar orasida o'zi paydo bo'ladi. */
+/* Klaviatura tugmalari ikkala ro'yxatdagi accepted javoblardan avtomatik
+   yig'iladi, gojuon (an'anaviy yapon) tartibida ko'rsatiladi. Yangi so'z
+   qo'shsangiz, kerakli harf tugmalar orasida o'zi paydo bo'ladi. */
 const HIRA_REF = "あいうえおかきくけこがぎぐげごさしすせそざじずぜぞたちつてとだぢづでどなにぬねのはひふへほばびぶべぼぱぴぷぺぽまみむめもやゆよらりるれろわをんゃゅょっぁぃぅぇぉ".split("");
 const KATA_REF = "アイウエオカキクケコガギグゲゴサシスセソザジズゼゾタチツテトダヂヅデドナニヌネノハヒフヘホバビブベボパピプペポマミムメモヤユヨラリルレロワヲンャュョッァィゥェォー".split("");
 
 function collectUsedChars(){
   const used = new Set();
-  WORDS.forEach(w=>{
+  [...ALL_WORDS, ...DAILY_WORDS].forEach(w=>{
     w.accepted.forEach(ans=>{
       ans.split("").forEach(ch=>used.add(ch));
     });
@@ -344,29 +383,46 @@ tabQuiz.addEventListener('click', ()=>{
   tabs.classList.add('quiz-active');
   tabQuiz.classList.add('active'); tabFlash.classList.remove('active');
   viewQuiz.classList.add('active'); viewFlash.classList.remove('active');
-  if(!quizStarted) startQuiz(WORDS);
+  if(!quizStarted) startQuiz(ALL_WORDS);
 });
 
 /* ---------------- FLASHCARDS ---------------- */
 const flashGrid = document.getElementById('flashGrid');
-WORDS.forEach(w=>{
-  const card = document.createElement('div');
-  card.className = 'card';
-  card.innerHTML = `
-    <div class="card-inner">
-      <div class="face front">
-        <div class="tag">${w.group}</div>
-        <div class="uz-word">${w.uz}</div>
-      </div>
-      <div class="face back">
-        <div class="kana">${w.kana}</div>
-        <div class="romaji">${w.romaji}</div>
-        <div class="hint">${w.uz}</div>
-      </div>
-    </div>`;
-  card.addEventListener('click', ()=>card.classList.toggle('flipped'));
-  flashGrid.appendChild(card);
+const flashSubAll = document.getElementById('flashSubAll');
+const flashSubDaily = document.getElementById('flashSubDaily');
+
+function renderFlashGrid(words){
+  flashGrid.innerHTML = '';
+  words.forEach(w=>{
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML = `
+      <div class="card-inner">
+        <div class="face front">
+          <div class="tag">${w.group}</div>
+          <div class="uz-word">${w.uz}</div>
+        </div>
+        <div class="face back">
+          <div class="kana">${w.kana}</div>
+          <div class="romaji">${w.romaji}</div>
+          <div class="hint">${w.uz}</div>
+        </div>
+      </div>`;
+    card.addEventListener('click', ()=>card.classList.toggle('flipped'));
+    flashGrid.appendChild(card);
+  });
+}
+
+flashSubAll.addEventListener('click', ()=>{
+  flashSubAll.classList.add('active'); flashSubDaily.classList.remove('active');
+  renderFlashGrid(ALL_WORDS);
 });
+flashSubDaily.addEventListener('click', ()=>{
+  flashSubDaily.classList.add('active'); flashSubAll.classList.remove('active');
+  renderFlashGrid(DAILY_WORDS);
+});
+
+renderFlashGrid(ALL_WORDS);
 
 /* ---------------- QUIZ ---------------- */
 let quizStarted = false;
@@ -379,11 +435,23 @@ let typed = "";
 let kbMode = "hira";
 let busy = false;
 let resultLog = []; // per-question 'correct'/'wrong' for progress dots
+let currentQuizWords = ALL_WORDS; // eslab qolinadi — "qaytadan boshlash" shu to'plamga qaytadi
 
 const progressRow = document.getElementById('progressRow');
 const scoreLine = document.getElementById('scoreLine');
 const quizStage = document.getElementById('quizStage');
 const doneStage = document.getElementById('doneStage');
+const quizSubAll = document.getElementById('quizSubAll');
+const quizSubDaily = document.getElementById('quizSubDaily');
+
+quizSubAll.addEventListener('click', ()=>{
+  quizSubAll.classList.add('active'); quizSubDaily.classList.remove('active');
+  startQuiz(ALL_WORDS);
+});
+quizSubDaily.addEventListener('click', ()=>{
+  quizSubDaily.classList.add('active'); quizSubAll.classList.remove('active');
+  startQuiz(DAILY_WORDS);
+});
 
 function shuffle(arr){
   const a = arr.slice();
@@ -396,6 +464,7 @@ function shuffle(arr){
 
 function startQuiz(sourceWords){
   quizStarted = true;
+  currentQuizWords = sourceWords;
   queue = shuffle(sourceWords);
   idx = 0; correctCount = 0; wrongCount = 0; mistakes = []; resultLog = [];
   quizStage.style.display = 'flex';
@@ -543,9 +612,9 @@ function showDone(){
         <div><span class="num r">${wrongCount}</span><span class="lbl">Xato</span></div>
       </div>
       ${mistakeHtml}
-      <button id="btnRestart" style="width:100%;padding:12px;border-radius:10px;border:1px solid var(--border);background:var(--bg-soft);color:var(--cream);font-weight:700;cursor:pointer;">Qaytadan boshlash (15 ta)</button>
+      <button id="btnRestart" style="width:100%;padding:12px;border-radius:10px;border:1px solid var(--border);background:var(--bg-soft);color:var(--cream);font-weight:700;cursor:pointer;">Qaytadan boshlash (${total} ta)</button>
     </div>`;
-  document.getElementById('btnRestart').addEventListener('click', ()=>startQuiz(WORDS));
+  document.getElementById('btnRestart').addEventListener('click', ()=>startQuiz(currentQuizWords));
   if(mistakes.length){
     document.getElementById('btnRetry').addEventListener('click', ()=>startQuiz(mistakes));
   }
